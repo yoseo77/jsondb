@@ -1,0 +1,233 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html lang="ko">
+  <head>
+    <title>jsdb</title>
+    <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+    <script type="text/javascript" src="jquery\jquery.min.js"></script>
+	<script type="text/javascript" src="jquery\jquery-migrate-1.2.1.min.js"></script>
+	<script>
+		//JQuery Version
+		//alert($().jquery);
+	</script>
+	<script type="text/javascript" src="jsdb\jsdbtool.js"></script>
+	<script type="text/javascript" src="jsdb\jsdbngin.js"></script>
+	<script type="text/javascript" src="jsdb\jsdbjson.js"></script>
+	<script type="text/javascript">
+	$.support.cors = true;
+	
+	jQuery(Document).ready(function() {
+		setTableCombo();
+		console.log("#####################################");
+	});
+
+	function goRun() {
+		var inputSql = document.frm.inputSql.value;
+		var result = parsing(inputSql);
+		alert("goRun - result : \n"+result);
+		document.frm.output.value=result;
+	}
+	function goView() {
+		//alert(SUN.header[0]['resultCode']);
+		//alert(SUN.items[0]['LON']);
+
+		var tblNm = document.getElementById('tableNm').value;
+		var output = getDataView(tblNm);
+		
+		var jsdbprint = document.getElementById('jsdbprint');
+		jsdbprint.innerHTML='<br/><B>'+tblNm+'</B><br/>'+output + jsdbprint.innerHTML;
+	}
+	function clearView() {
+		var jsdbprint = document.getElementById('jsdbprint');
+		jsdbprint.innerHTML='';
+	}
+	
+	function goConnectData(){
+		var callUrl = $("#callUrl").val();
+		var callName = $("#callName").val();
+		
+		//alert(callUrl);
+	 	if(callName == "") {
+			alert("Set Cust Name을 입력해주세요.");
+			 $("#callName").focus();
+			 return;
+		}
+	 	if(callUrl == "") {
+			alert("Call Url를 입력해주세요.");
+			 $("#callUrl").focus();
+			 return;
+		} 
+	 	
+		 $.ajax({
+			url: callUrl,
+			type: "GET",
+			//dataType: "json",
+			dataType: "text",
+			//async: false, 
+			success: function( result ) {
+				//[주의] json response content type은 contentType="application/json; charset=UTF-8" 임
+				//1) json 데이타의 데이타 구분은 큰따옴표(")로 해야함
+				//2) json 데이타의 마지막 라인에 세미콜론(;)을 찍으면 안됨
+				//3) dataType: "json" 일때는 제외이며, 수동으로 변환시에 json 데이타 포맷이 중괄호로 시작하면 var obj = eval("("+jsondata+")"); 이렇게 소괄호로 묶어 배열처리해야 함. ex) { "키","값" }
+				//4) json 데이타 포맷이 대괄호로 시작하면 바로 eval 하면 됨. var obj = eval(jsondata); ex) [ { "키","값" }, { "키","값" } ... ]
+				//if(result =="null") {
+					alert("Response text Data : "+result);
+					
+					var objResult = null;
+					if(result.indexOf("[") == 0) {
+						objResult = eval(result);
+					} else {
+						objResult = eval("("+result+")");
+					}
+					alert("Response json Data : "+objResult);
+					//return;
+				//}
+				
+				//addGlobalsDB(callName, result);
+				addGlobalsDB(callName, objResult);
+				
+				setTableCombo();
+				//alert("result : "+result);
+			},
+			error: function (request, status, errorThrown) {
+				alert("[ERROR] "+status +"\n"+ errorThrown);
+			}
+		 }); 
+	}
+	
+	function setTableCombo() {
+		var combo = document.getElementById("tableNmCB");
+		
+		if(combo.options) {
+			var optSize = combo.options.length;
+			for(var i=optSize-1;i>=0;i--) {
+				combo.options.remove(i);
+			}
+		}
+		combo.options.add( new Option( "- select - " , "" ) );
+		
+		var gbDB = getListGlobalsDB();
+		
+		for(var i=0;i<gbDB.length;i++) {
+			//alert( gbDB[i]["name"] );
+			var keys = Object.keys(gbDB[i]["table"]);
+			
+			for(var k=0; k < keys.length;k++) {
+				//combo.options.add( new Option( gbDB[i]["name"]+"."+keys[k].toLowerCase() , gbDB[i]["name"]+"."+keys[k].toLowerCase() ) );
+				combo.options.add( new Option( gbDB[i]["name"]+"."+keys[k] , gbDB[i]["name"]+"."+keys[k] ) );
+			}
+		}
+	}
+	
+	function goTableCombo(frmobj) {
+		var tblNm = frmobj.value;
+		
+		//alert("selVal : "+tblNm);
+		if(tblNm != "") {
+			var output = getDataView(tblNm);
+			var jsdbprint = document.getElementById('jsdbprint');
+			jsdbprint.innerHTML='<br/><B>'+tblNm+'</B><br/>'+output + jsdbprint.innerHTML;
+		}
+	}
+	</script>
+</head>
+<body>
+<table >
+	<tr>
+		<td valign="top">
+			<div style="border:1px solid gray;padding: 2px; margin: 2px;">
+				<table align="center" border="0">
+					<tr>
+						<th align="left"><h5>Data Query - [주의점]문자열 조건 like 사용, 숫자는 비교연산자 사용
+						<br/>예시) select U.LANG_CD, U.LANG_NM  from SAMPLE.DS_OUT U where U.LANG_NM like '%e%' ;
+						</h5>
+						</th>
+						<td align='right'><input type="button" value=" Run " onclick="goRun()"/></td>
+					</tr>
+					<tr>
+						<td colspan="2">
+							<form name="frm" >
+								<textarea name="inputSql" cols='70' style="height:293px;">select U.userid, U.usernm, U.deptcd, D.deptnm, U.age, D.useYn, U.sex, U.stat from USER U inner join DEPT D on(U.deptcd = D.deptcd) where U.sex='2' and D.deptnm like '%솔루션%';</textarea>
+								<br/>
+								<textarea name="output" cols='70' style="height:360px;"></textarea>
+							</form>
+						</td>
+					</tr>
+				</table>
+			</div>
+		</td>
+		<td valign="top" >
+			<div style="border:1px solid pink;padding: 2px; margin: 2px;">
+				<table border="0">
+					<tr><th align="left" colspan="2"> Get Cust Data</th></tr>
+					<tr>
+						<td align="center">Set Cust Name</td><td><input type="text" id='callName'  name='callName' value="SAMPLE_RATES" style="width:200px;"/></td>
+					</tr>
+					<tr>
+						<td align="center">Get Data URL</td>
+						<td>
+							<input type="text" id='callUrl'  name='callUrl'  style='width:300px' value="https://api.manana.kr/exchange/rate.json" />
+							<input type="button" value=" Get " onclick="goConnectData()"/>
+<br/>
+<h6>
+#공공데이타 사이트<br/>
+http://data.go.kr/dataset/15021148/standard.do<br/>
+<br/>
+#환율 json<br/>
+https://api.manana.kr/exchange/rate.json<br/>
+<br/>
+#전국초중등학교위치표준데이터  json data<br/>
+http://data.go.kr/widg/dsi/irosGnrlDataSetManage/downloadDataStoreToJson.do?id=a4849004-a8a7-4d87-b2b6-032541290212&fileName=전국초중등학교위치표준데이터<br/>
+<br/>
+# 환율 csv<br/>
+http://www.koreaexim.go.kr/site/program/financial/exchangeCsvdown?searchdate=2017-08-04<br/>
+</h6>
+						</td>
+					</tr>
+				</table>
+			</div>
+
+			<!--<div style="border:1px solid red;padding: 2px; margin: 2px;">-->
+				<table align="left" border="0">
+					<tr><th align="left" colspan="2"> SEARCH</th></tr>
+					<tr>
+						<td align="center">Select Data List</td>
+						<td>
+							<select name="tableNmCB"  id="tableNmCB" style="width:200px;" onchange="goTableCombo(this)"></select>
+							<input type="button" value="Reload" onclick="setTableCombo()"/>
+						</td>
+					</tr>
+					<tr>
+						<td align="center">Input Data Name<br/><span style="font-size:8pt">ex) USER.user</span></td>
+						<td>
+							<input type="text" id='tableNm'  name='tableNm' value="USER.user"  style="width:200px;"/>
+							<input type="button" value=" View Data " onclick="goView()"/>
+							<input type="button" value=" View Clear " onclick="clearView()"/>
+						</td>
+					</tr>
+					<tr>
+						<td colspan="2">
+							<!-- js db print -->
+							<div id="jsdbprint" style="border:1px solid lightgray;width: 500px;height: 500px;padding: 2px; margin: 2px;;overflow:scroll;"></div>
+						</td>
+					</tr>
+				</table>
+			<!--</div>-->
+		</td>
+	</tr>
+</table>
+
+<h3>[Example] Query</h3>
+<textarea name="inputSql" cols='70' style="height:293px;">
+-- User & Dept
+select U.userid, U.usernm, U.deptcd, D.deptnm, U.age, D.useYn, U.sex, U.stat from USER U inner join DEPT D on(U.deptcd = D.deptcd) where U.sex='2' and D.deptnm like '%솔루션%';
+
+select U.userid, U.usernm, U.deptcd, D.deptnm, U.age, D.useYn, U.sex, U.stat from USER U inner join DEPT D on(U.deptcd = D.deptcd) where  U.age >= 25 and U.sex=2;
+
+-- 언어
+select U.LANG_CD, U.LANG_NM  from SAMPLE.DS_OUT U;
+
+-- 일출/일몰
+select U.BASEDT,U.LON,U.LAT,U.SUNSETDE,U.SUNRISEDE  from SAMPLE.items U inner join SAMPLE.items D on(U.BASEDT = D.BASEDT) where U.BASEDT>=20150127 and U.BASEDT <= 20150210 ;
+</textarea>
+</body>
+</html>
