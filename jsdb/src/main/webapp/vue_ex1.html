@@ -1,0 +1,28 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html lang="ko">
+  <head>
+    <title>vue_ex1</title>
+    <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+    <script type="text/javascript" src="vuejs\vue.min.js"></script>
+</head>
+<body>
+<div id="app-5" class="demo">
+  <p>{{ message }}</p>
+  <button v-on:click="reverseMessage">메시지 뒤집기</button>
+</div>
+<script>
+var app5 = new Vue({
+  el: '#app-5',
+  data: {
+    message: '안녕하세요! Vue.js!'
+  },
+  methods: {
+    reverseMessage: function () {
+      this.message = this.message.split('').reverse().join('')
+    }
+  }
+})
+</script>
+
+</body>
+</html>
